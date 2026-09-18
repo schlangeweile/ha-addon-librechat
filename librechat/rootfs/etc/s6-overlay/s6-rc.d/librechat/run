@@ -3,6 +3,17 @@
 
 bashio::log.info "Starting LibreChat"
 
+# Wait for the database to accept connections (up to 120 s)
+i=0
+until (exec 3<>/dev/tcp/127.0.0.1/27017) 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -ge 120 ]; then
+        bashio::log.error "FerretDB did not become ready"
+        exit 1
+    fi
+    sleep 1
+done
+
 cd /app || exit 1
 
 # Persist uploaded images outside the application directory
@@ -15,6 +26,12 @@ ln -s /data/images /app/client/public/images
 if [ ! -f /config/.env ]; then
     cp /etc/librechat/.env.example /config/.env
     bashio::log.info "Created default configuration. Edit .env in the add-on config folder, then restart."
+fi
+
+# Minimal valid librechat.yaml (CONFIG_PATH points here); edit or replace
+# it to customize endpoints - see librechat.example.yaml in the LibreChat repo
+if [ ! -f /config/librechat.yaml ]; then
+    printf 'version: 1.0.0\n' > /config/librechat.yaml
 fi
 
 # Apply the user's configuration before every start

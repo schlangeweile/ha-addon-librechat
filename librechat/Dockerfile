@@ -1,67 +1,51 @@
 # LibreChat Home Assistant add-on image
 #
-# Strategy: instead of building LibreChat from source (slow, fragile), we copy
-# the finished app (production deps + built frontend) from the official
-# multi-arch image into a Debian slim image, which gives us glibc for the
-# official MongoDB apt repository. Everything here is native aarch64/amd64 -
-# no emulation anywhere.
-ARG LIBRECHAT_VERSION=v0.8.7
+# The database stack is FerretDB (MongoDB wire-protocol API) on PostgreSQL 17
+# with the DocumentDB extension. This is deliberate: official MongoDB arm64
+# binaries are compiled for ARMv8.2+ (LSE atomics) and terminate with SIGILL
+# on ARMv8.0 hardware such as the Odroid N2+. PostgreSQL, the DocumentDB
+# extension and FerretDB are all ARMv8.0-safe (verified with QEMU cortex-a53
+# and an LSE opcode scan). LibreChat gained official DocumentDB/FerretDB
+# support in v0.8.8-rc3.
+ARG LIBRECHAT_VERSION=v0.8.8-rc3
 
 FROM ghcr.io/danny-avila/librechat:${LIBRECHAT_VERSION} AS librechat
 
-FROM node:24.16.0-bookworm-slim
+FROM ghcr.io/ferretdb/ferretdb:2.7.0 AS ferretdb
+
+FROM node:24.16.0-bookworm-slim AS node
+
+FROM ghcr.io/ferretdb/postgres-documentdb:17-0.107.0-ferretdb-2.7.0
 
 ARG TARGETARCH
 ARG BUILD_ARCH
-ARG LIBRECHAT_VERSION=v0.8.7
-ARG MONGODB_VERSION=8.0
+ARG LIBRECHAT_VERSION=v0.8.8-rc3
 ARG MEILISEARCH_VERSION=v1.35.1
 ARG S6_OVERLAY_VERSION=3.2.3.2
 ARG BASHIO_VERSION=0.19.0
 
-# mapfile below needs bash, the slim image defaults to dash
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # HOST must be 0.0.0.0 so the add-on port mapping reaches the app
-# (the value in .env cannot override an exported env var)
-ENV HOST=0.0.0.0
+# (the value in .env cannot override an exported env var).
+# FerretDB listens on 127.0.0.1:27017 without client authentication
+# (loopback only, container-local); PostgreSQL auth is trust on loopback.
+ENV HOST=0.0.0.0 \
+    PGDATA=/data/postgresql \
+    FERRETDB_POSTGRESQL_URL=postgres://ferretdb@127.0.0.1:5432/ferretdb \
+    FERRETDB_AUTH=false \
+    FERRETDB_TELEMETRY=disable \
+    FERRETDB_LISTEN_ADDR=127.0.0.1:27017
 
-# --- System packages + MongoDB from the official apt repo (amd64 + arm64) ---
+# --- s6-overlay v3 (supervisor) + bashio (HA helper library) + Meilisearch ---
 # Architecture resolution: BuildKit exports TARGETARCH (docker build), the
 # home-assistant/builder exports BUILD_ARCH (HA naming) - normalize both.
-# MongoDB publishes arm64 server packages for Ubuntu, not Debian: use the
-# bookworm repo on amd64 and the jammy repo on arm64 (jammy binaries run fine
-# on bookworm, glibc 2.35 <= 2.36)
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates curl gnupg xz-utils; \
+    apt-get install -y --no-install-recommends curl xz-utils; \
     case "${TARGETARCH:-${BUILD_ARCH:-}}" in \
-        amd64) MONGO_REPO="debian bookworm/mongodb-org/${MONGODB_VERSION} main" ;; \
-        arm64|aarch64) MONGO_REPO="ubuntu jammy/mongodb-org/${MONGODB_VERSION} multiverse" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH:-${BUILD_ARCH:-}}" >&2; exit 1 ;; \
-    esac; \
-    curl -fsSL "https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc" \
-        | gpg --dearmor -o "/usr/share/keyrings/mongodb-server-${MONGODB_VERSION}.gpg"; \
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-${MONGODB_VERSION}.gpg ] https://repo.mongodb.org/apt/${MONGO_REPO}" \
-        > "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list"; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends mongodb-org-server libjemalloc2; \
-    echo "mongodb-org-server hold" | dpkg --set-selections; \
-    # keep the upstream LD_PRELOAD path valid on Debian multiarch
-    ln -s "$(find /usr/lib -name 'libjemalloc.so.2' | head -1)" /usr/lib/libjemalloc.so.2; \
-    apt-get purge -y gnupg; \
-    apt-get autoremove -y; \
-    apt-get clean; rm -rf /var/lib/apt/lists/*
-
-# keep the upstream LD_PRELOAD path valid on Debian multiarch (declared here,
-# after libjemalloc2 exists, so build-time RUN shells do not warn)
-ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
-
-# --- s6-overlay v3 (supervisor) + bashio (HA helper library) ---
-RUN set -eux; \
-    case "${TARGETARCH:-${BUILD_ARCH:-}}" in \
-        amd64) S6_ARCH=x86_64 ;; \
-        arm64|aarch64) S6_ARCH=aarch64 ;; \
+        amd64) S6_ARCH=x86_64; MEILI_ARCH=amd64 ;; \
+        arm64|aarch64) S6_ARCH=aarch64; MEILI_ARCH=aarch64 ;; \
         *) echo "Unsupported architecture: ${TARGETARCH:-${BUILD_ARCH:-}}" >&2; exit 1 ;; \
     esac; \
     S6_BASE="https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}"; \
@@ -75,20 +59,22 @@ RUN set -eux; \
     mkdir -p /tmp/bashio /usr/lib/bashio; \
     tar -xzf /tmp/bashio.tar.gz --strip-components=1 -C /tmp/bashio; \
     mv /tmp/bashio/lib/* /usr/lib/bashio/; \
-    ln -sf /usr/lib/bashio/bashio /usr/bin/bashio
-
-# --- Meilisearch single binary (aarch64 + amd64 release assets) ---
-RUN set -eux; \
-    case "${TARGETARCH:-${BUILD_ARCH:-}}" in \
-        amd64) MEILI_ARCH=amd64 ;; \
-        arm64|aarch64) MEILI_ARCH=aarch64 ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH:-${BUILD_ARCH:-}}" >&2; exit 1 ;; \
-    esac; \
+    ln -sf /usr/lib/bashio/bashio /usr/bin/bashio; \
     curl -fsSL "https://github.com/meilisearch/meilisearch/releases/download/${MEILISEARCH_VERSION}/meilisearch-linux-${MEILI_ARCH}" -o /opt/meilisearch; \
     chmod 755 /opt/meilisearch; \
-    rm -rf /tmp/*
+    rm -rf /tmp/* /var/lib/apt/lists/*
 
-# --- LibreChat app from the official image ---
+# Node.js + npm from the official node image (postgres base has none);
+# /usr/local already contains the postgres image's gosu - extend, not replace
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# FerretDB server binary (Go, GOARM64=v8.0 - safe on ARMv8.0)
+COPY --from=ferretdb /ferretdb /usr/local/bin/ferretdb
+
+# LibreChat app from the official image (built frontend + production deps)
 COPY --from=librechat /app /app
 WORKDIR /app
 
@@ -101,7 +87,7 @@ RUN set -eux; \
     rm -rf /root/.npm
 
 COPY rootfs /
-RUN find /etc/s6-overlay/s6-rc.d -type f \( -name run -o -name finish \) -exec chmod 755 {} +
+RUN find /etc/s6-overlay -type f \( -name run -o -name finish -o -name up -o -path "*/scripts/*" \) -exec chmod 755 {} +
 
 EXPOSE 3080
 ENTRYPOINT ["/init"]

@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+
+bashio::log.info "Starting FerretDB (MongoDB-compatible API on 127.0.0.1:27017)"
+# Configuration comes from image ENV: FERRETDB_POSTGRESQL_URL,
+# FERRETDB_AUTH=false, FERRETDB_TELEMETRY=disable, FERRETDB_LISTEN_ADDR
+exec /usr/local/bin/ferretdb

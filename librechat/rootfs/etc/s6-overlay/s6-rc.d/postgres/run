@@ -1,0 +1,25 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+
+PG_BIN=/usr/lib/postgresql/17/bin
+
+mkdir -p "$PGDATA"
+chown -R postgres:postgres "$PGDATA"
+
+# Initialize the database cluster on first start
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+    bashio::log.info "Initializing PostgreSQL cluster"
+    gosu postgres "$PG_BIN/initdb" -D "$PGDATA" \
+        --username=ferretdb --auth-local=trust --auth-host=trust \
+        --encoding=UTF8 --locale=C
+fi
+
+bashio::log.info "Starting PostgreSQL"
+# pg_cron must be first in shared_preload_libraries; the DocumentDB
+# extensions require preloading as well (pg_cron launcher may log one
+# harmless FATAL on the very first boot, before dbinit creates the database)
+exec gosu postgres "$PG_BIN/postgres" -D "$PGDATA" \
+    -c listen_addresses=127.0.0.1 \
+    -c unix_socket_directories=/var/run/postgresql \
+    -c shared_preload_libraries=pg_cron,pg_documentdb_core,pg_documentdb \
+    -c cron.database_name=ferretdb

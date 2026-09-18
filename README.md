@@ -1,23 +1,26 @@
 # LibreChat for Home Assistant (arm64 & amd64)
 
 A Home Assistant add-on repository running [LibreChat](https://www.librechat.ai)
-- the open-source AI chat platform - with a built-in MongoDB database and
-Meilisearch full-text search. Everything runs locally on your Home Assistant
-OS device; you supply the model endpoints (OpenAI, Anthropic, local LLM
-servers, ...).
+- the open-source AI chat platform - with a built-in FerretDB/PostgreSQL
+document database and Meilisearch full-text search. Everything runs locally
+on your Home Assistant OS device; you supply the model endpoints (OpenAI,
+Anthropic, local LLM servers, ...).
 
 It targets devices like the **Hardkernel Odroid N2+** and Raspberry Pi 4/5
-(aarch64) as well as x86-64 machines.
+(aarch64) as well as x86-64 machines. All bundled services are verified to
+run on ARMv8.0 CPUs (official MongoDB arm64 builds are not - hence the
+FerretDB/DocumentDB storage engine, which LibreChat officially supports).
 
 | Architecture | Status |
 | ------------ | ------ |
-| aarch64      | tested for Odroid N2+ |
+| aarch64 (ARMv8.0) | tested for Odroid N2+ |
 | amd64        | built from the same multi-arch sources |
 
-The add-on image is assembled from the official LibreChat multi-arch release
-(no compilation from source), with MongoDB and Meilisearch added as supervised
-services in the same container. Ready-made images for both architectures are
-built by GitHub Actions and pulled on install.
+The add-on image is assembled from official multi-arch release artifacts (no
+compilation from source): the LibreChat app image, PostgreSQL 17 with the
+DocumentDB extension, FerretDB and Meilisearch, supervised by s6-overlay.
+Ready-made images for both architectures are built by GitHub Actions and
+pulled on install.
 
 ## Installation
 
