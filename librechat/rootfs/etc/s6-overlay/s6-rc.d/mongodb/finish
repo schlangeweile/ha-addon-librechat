@@ -1,0 +1,22 @@
+#!/usr/bin/env bashio
+# shellcheck shell=bash
+
+declare APP_EXIT_CODE=${1}
+
+if [[ "${APP_EXIT_CODE}" -ne 0 ]] && [[ "${APP_EXIT_CODE}" -ne 256 ]]; then
+    bashio::log.warning "MongoDB exited with code ${APP_EXIT_CODE}"
+
+    # Print the last MongoDB log lines to the add-on log for diagnosis
+    if [ -f /var/log/mongodb/mongod.log ]; then
+        tail -n 20 /var/log/mongodb/mongod.log | while read -r line; do
+            bashio::log.warning "${line}"
+        done
+    fi
+
+    # Give the user a minute to read the logs before the add-on stops
+    bashio::log.warning "Halting add-on in 60 seconds..."
+    sleep 60
+    /run/s6/basedir/bin/halt
+fi
+
+bashio::log.info "MongoDB stopped normally, restarting..."

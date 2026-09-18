@@ -1,0 +1,3 @@
+configuration: {}
+network:
+  3080/tcp: LibreChat web interface

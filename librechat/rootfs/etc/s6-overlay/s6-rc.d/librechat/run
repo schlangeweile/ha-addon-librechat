@@ -1,0 +1,23 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+
+bashio::log.info "Starting LibreChat"
+
+cd /app || exit 1
+
+# Persist uploaded images outside the application directory
+mkdir -p /data/images
+rm -rf /app/client/public/images
+ln -s /data/images /app/client/public/images
+
+# Seed the configuration file on first start; it lives in the add-on
+# config folder (/addon_config/librechat) and survives add-on updates
+if [ ! -f /config/.env ]; then
+    cp /etc/librechat/.env.example /config/.env
+    bashio::log.info "Created default configuration. Edit .env in the add-on config folder, then restart."
+fi
+
+# Apply the user's configuration before every start
+cp /config/.env /app/.env
+
+exec npm run backend

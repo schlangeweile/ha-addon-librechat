@@ -1,0 +1,45 @@
+name: Build add-on images
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "librechat/**"
+      - ".github/workflows/builder.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }} add-on image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ["aarch64", "amd64"]
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v6.0.1
+
+      - name: 🔧 Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: 🔑 Login to GitHub Container Registry
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚀 Build and push ${{ matrix.arch }} add-on image
+        uses: home-assistant/builder@2026.02.1
+        with:
+          args: |
+            --${{ matrix.arch }} \
+            --target /data/librechat \
+            --image "{arch}-addon-librechat" \
+            --docker-hub "ghcr.io/schlangeweile" \
+            --addon

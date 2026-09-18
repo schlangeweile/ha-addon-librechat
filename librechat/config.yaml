@@ -1,0 +1,15 @@
+# https://developers.home-assistant.io/docs/add-ons/configuration
+name: LibreChat
+slug: librechat
+version: "0.8.7-ha1"
+description: Open-source AI chat platform (LibreChat) with built-in MongoDB and Meilisearch, running fully locally
+url: "https://github.com/schlangeweile/ha-addon-librechat/tree/master/librechat"
+arch:
+  - aarch64
+  - amd64
+init: false
+ports:
+  3080/tcp: 3080
+map:
+  - addon_config:rw
+image: "ghcr.io/schlangeweile/{arch}-addon-librechat"
