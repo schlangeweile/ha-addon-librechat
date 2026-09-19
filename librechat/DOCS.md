@@ -48,6 +48,11 @@ file next to `.env` in the add-on config folder and add the following line to
 CONFIG_PATH="/config/librechat.yaml"
 ```
 
+`examples/deepseek.yaml` in this repository shows a complete setup: a DeepSeek
+custom endpoint with reasoning-effort model specs (`reasoning_effort`
+low/high/max). Model specs must reference the custom endpoint by its `name`
+exactly as defined, and `modelSpecs` entries live under a `list:` key.
+
 ### Secrets
 
 Generate the secrets referenced in `.env` (e.g. `CREDS_KEY`, `CREDS_IV`,

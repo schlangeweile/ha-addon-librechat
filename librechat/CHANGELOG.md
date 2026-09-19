@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.8-rc3-ha2
+
+- The auto-created `librechat.yaml` stub now uses config version `1.3.16`,
+  matching the version documented for the bundled LibreChat v0.8.8-rc3 (the
+  previous stub wrote `1.0.0`; cosmetic only, since the version is not
+  validated against a fixed value)
+- Added `examples/deepseek.yaml`: reference `librechat.yaml` with a DeepSeek
+  custom endpoint and reasoning-effort model specs (repo documentation only;
+  not shipped in the image)
+
 ## 0.8.8-rc3-ha1
 
 - **Storage engine switched from MongoDB to FerretDB + PostgreSQL 17 with the

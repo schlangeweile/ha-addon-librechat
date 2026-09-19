@@ -29,9 +29,10 @@ if [ ! -f /config/.env ]; then
 fi
 
 # Minimal valid librechat.yaml (CONFIG_PATH points here); edit or replace
-# it to customize endpoints - see librechat.example.yaml in the LibreChat repo
+# it to customize endpoints - see librechat.example.yaml in the LibreChat repo.
+# The version must match the one documented for the bundled LibreChat release.
 if [ ! -f /config/librechat.yaml ]; then
-    printf 'version: 1.0.0\n' > /config/librechat.yaml
+    printf 'version: 1.3.16\n' > /config/librechat.yaml
 fi
 
 # Apply the user's configuration before every start
