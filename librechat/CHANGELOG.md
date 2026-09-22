@@ -6,9 +6,13 @@
   matching the version documented for the bundled LibreChat v0.8.8-rc3 (the
   previous stub wrote `1.0.0`; cosmetic only, since the version is not
   validated against a fixed value)
-- Added `examples/deepseek.yaml`: reference `librechat.yaml` with a DeepSeek
-  custom endpoint and reasoning-effort model specs (repo documentation only;
-  not shipped in the image)
+- Added `examples/reasoning-effort.yaml`: reference `librechat.yaml` with
+  DeepSeek and GLM (Z.ai) custom endpoints and reasoning-effort model specs
+  (repo documentation only; not shipped in the image)
+- DeepSeek example and DOCS.md now cover web search: LibreChat's agentic
+  `web_search` tool with Tavily as provider (`webSearch:` section plus
+  `webSearch: true` on the model specs), since DeepSeek's API has no native
+  search
 
 ## 0.8.8-rc3-ha1
 

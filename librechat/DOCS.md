@@ -48,10 +48,31 @@ file next to `.env` in the add-on config folder and add the following line to
 CONFIG_PATH="/config/librechat.yaml"
 ```
 
-`examples/deepseek.yaml` in this repository shows a complete setup: a DeepSeek
-custom endpoint with reasoning-effort model specs (`reasoning_effort`
-low/high/max). Model specs must reference the custom endpoint by its `name`
-exactly as defined, and `modelSpecs` entries live under a `list:` key.
+`examples/reasoning-effort.yaml` in this repository shows a complete setup:
+DeepSeek and GLM (Z.ai) custom endpoints with reasoning-effort model specs
+(`reasoning_effort` low/high/max). Model specs must reference the custom
+endpoint by its `name` exactly as defined, and `modelSpecs` entries live
+under a `list:` key.
+
+### Web search
+
+Web search runs as an agentic tool: when enabled, the model itself decides
+whether a query needs the web and calls LibreChat's `web_search` tool, which
+the server executes through a configured search provider (serper, tavily,
+searxng or keenable) - the provider results are returned to the model as tool
+results. This works with custom OpenAI-compatible endpoints whose models
+support function calling. The quickest setup is Tavily (free tier available);
+add the following to `.env`, restart, then toggle **Web Search** in the chat
+input's tools menu (per conversation):
+
+```ini
+LIBRECHAT_WEB_SEARCH_PROVIDER=tavily
+TAVILY_API_KEY=tvly-...
+```
+
+The same can be configured in `librechat.yaml` via the `webSearch:` section
+(see `examples/reasoning-effort.yaml`, which also enables `webSearch: true`
+on the DeepSeek model specs so they start with search available).
 
 ### Secrets
 

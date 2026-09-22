@@ -1,0 +1,131 @@
+# Example librechat.yaml: DeepSeek and GLM (Z.ai) with selectable
+# reasoning levels
+#
+# Copy the content of this file to librechat.yaml in the add-on config folder
+# (the folder that also holds your .env; container path /config/librechat.yaml)
+# and set the API keys in that .env, then restart the add-on:
+#   DEEPSEEK_API_KEY=...  (line exists, commented out, in the default .env)
+#   ZAI_API_KEY=...       (add this line yourself; no template entry)
+#
+# Notes:
+# - Config version must match the one documented for the bundled LibreChat
+#   release (1.3.16 for v0.8.8-rc3).
+# - Model specs reference a custom endpoint by its name exactly as defined
+#   under endpoints.custom ("DeepSeek"/"GLM" here), not by "custom".
+# - reasoning_effort values DeepSeek accepts: none, low, high, max
+#   (thinking is on by default; "none" disables it entirely).
+# - reasoning_effort values GLM 5.3 accepts: low, high, max (max is the
+#   default; thinking cannot be disabled). GLM coding-plan subscribers
+#   use baseURL https://api.z.ai/api/coding/paas/v4 instead.
+# - Web search: DeepSeek's API has no native search (the mobile app runs
+#   its own), so LibreChat provides the agentic web_search tool instead -
+#   the model decides when a query needs the web. It is executed through
+#   the configured search provider (Tavily here); also set TAVILY_API_KEY
+#   in .env. Users can toggle Web Search per conversation in the chat
+#   input's tools menu.
+
+version: 1.3.16
+cache: true
+
+webSearch:
+  searchProvider: "tavily"
+  tavilyApiKey: "${TAVILY_API_KEY}"
+
+endpoints:
+  custom:
+    - name: "DeepSeek"
+      apiKey: "${DEEPSEEK_API_KEY}"
+      baseURL: "https://api.deepseek.com"
+      models:
+        default:
+          - "deepseek-flash"
+          - "deepseek-v4-pro"
+        fetch: false
+      titleConvo: true
+      titleModel: "deepseek-flash"
+      modelDisplayLabel: "DeepSeek"
+      customParams:
+        reasoningFormat: "reasoning_effort"
+        reasoningKey: "reasoning_content"
+
+    - name: "GLM"
+      apiKey: "${ZAI_API_KEY}"
+      baseURL: "https://api.z.ai/api/paas/v4"
+      models:
+        default:
+          - "glm-5.3-flash"
+        fetch: false
+      titleConvo: true
+      titleModel: "glm-5.3-flash"
+      modelDisplayLabel: "GLM"
+      customParams:
+        reasoningFormat: "reasoning_effort"
+        reasoningKey: "reasoning_content"
+
+modelSpecs:
+  list:
+    - name: "ds-flash-low"
+      label: "DeepSeek Flash (Low)"
+      description: "Geringer Reasoning-Aufwand – maximale Geschwindigkeit."
+      group: "DeepSeek"
+      webSearch: true
+      preset:
+        endpoint: "DeepSeek"
+        model: "deepseek-flash"
+        reasoning_effort: "low"
+
+    - name: "ds-flash-high"
+      label: "DeepSeek Flash (High)"
+      description: "Hoher Reasoning-Aufwand (DeepSeek-Standard)."
+      group: "DeepSeek"
+      webSearch: true
+      preset:
+        endpoint: "DeepSeek"
+        model: "deepseek-flash"
+        reasoning_effort: "high"
+
+    - name: "ds-flash-max"
+      label: "DeepSeek Flash (Max)"
+      description: "Maximale Denk-Intensität (bis zu 128K Output-Token)."
+      group: "DeepSeek"
+      webSearch: true
+      preset:
+        endpoint: "DeepSeek"
+        model: "deepseek-flash"
+        reasoning_effort: "max"
+
+    - name: "ds-v4-pro"
+      label: "DeepSeek V4 Pro"
+      description: "Pro-Modell ohne feste Reasoning-Stufe (API-Standard)."
+      group: "DeepSeek"
+      webSearch: true
+      preset:
+        endpoint: "DeepSeek"
+        model: "deepseek-v4-pro"
+
+    - name: "glm-flash-low"
+      label: "GLM 5.3 Flash (Low)"
+      description: "Leichter Reasoning-Aufwand – hohe Geschwindigkeit."
+      group: "GLM"
+      preset:
+        endpoint: "GLM"
+        model: "glm-5.3-flash"
+        reasoning_effort: "low"
+
+    - name: "glm-flash-high"
+      label: "GLM 5.3 Flash (High)"
+      description: "Erhöhter Reasoning-Aufwand."
+      group: "GLM"
+      preset:
+        endpoint: "GLM"
+        model: "glm-5.3-flash"
+        reasoning_effort: "high"
+
+    - name: "glm-flash-max"
+      label: "GLM 5.3 Flash (Max)"
+      description: "Maximale Denk-Intensität (GLM-Standard)."
+      group: "GLM"
+      preset:
+        endpoint: "GLM"
+        model: "glm-5.3-flash"
+        reasoning_effort: "max"
