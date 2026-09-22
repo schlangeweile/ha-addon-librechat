@@ -15,8 +15,9 @@
 # - reasoning_effort values DeepSeek accepts: none, low, high, max
 #   (thinking is on by default; "none" disables it entirely).
 # - reasoning_effort values GLM 5.3 accepts: low, high, max (max is the
-#   default; thinking cannot be disabled). GLM coding-plan subscribers
-#   use baseURL https://api.z.ai/api/coding/paas/v4 instead.
+#   default; thinking cannot be disabled). The GLM endpoint is set up for
+#   the GLM Coding Plan (api.z.ai/api/coding/paas/v4); regular
+#   pay-as-you-go API keys use https://api.z.ai/api/paas/v4 instead.
 # - Web search: DeepSeek's API has no native search (the mobile app runs
 #   its own), so LibreChat provides the agentic web_search tool instead -
 #   the model decides when a query needs the web. It is executed through
@@ -50,7 +51,7 @@ endpoints:
 
     - name: "GLM"
       apiKey: "${ZAI_API_KEY}"
-      baseURL: "https://api.z.ai/api/paas/v4"
+      baseURL: "https://api.z.ai/api/coding/paas/v4"
       models:
         default:
           - "glm-5.3-flash"
