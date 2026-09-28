@@ -7,7 +7,7 @@
 # extension and FerretDB are all ARMv8.0-safe (verified with QEMU cortex-a53
 # and an LSE opcode scan). LibreChat gained official DocumentDB/FerretDB
 # support in v0.8.8-rc3.
-ARG LIBRECHAT_VERSION=v0.8.8-rc3
+ARG LIBRECHAT_VERSION=v0.8.8-rc4
 
 FROM ghcr.io/danny-avila/librechat:${LIBRECHAT_VERSION} AS librechat
 
@@ -19,7 +19,7 @@ FROM ghcr.io/ferretdb/postgres-documentdb:17-0.107.0-ferretdb-2.7.0
 
 ARG TARGETARCH
 ARG BUILD_ARCH
-ARG LIBRECHAT_VERSION=v0.8.8-rc3
+ARG LIBRECHAT_VERSION=v0.8.8-rc4
 ARG MEILISEARCH_VERSION=v1.35.1
 ARG S6_OVERLAY_VERSION=3.2.3.2
 ARG BASHIO_VERSION=0.19.0

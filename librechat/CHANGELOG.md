@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.8.8-rc4-ha1
+
+- LibreChat **v0.8.8-rc4** (was v0.8.8-rc3) - upstream pre-release with ~100
+  fixes and additions (new OpenAI/Anthropic/xAI models, agent tooling and
+  trace-viewer improvements, streaming performance work); no breaking changes
+  announced, database stack untouched
+- Verified unchanged for this add-on: Node 24.16.0 (`.nvmrc` identical to the
+  base image), `sharp` still a dependency (glibc replacement step stays),
+  official image still Alpine with the `/app` layout, and the
+  DocumentDB/FerretDB compatibility code paths are still present in the tag
+- Refreshed `.env.example` from the v0.8.8-rc4 tag (new RUM proxy auth
+  options, updated `OPENAI_MODELS` list incl. GPT-6 Sol/Luna, reworked
+  schedules comments); the local override
+  `CONFIG_PATH="/config/librechat.yaml"` is kept
+- `SCHEDULES_SINGLE_PROCESS=true` stays active in the default `.env`
+  (upstream rc4 comments it out): without it and without Redis, rc4 refuses
+  to arm the scheduler and all schedule write routes return 503 - this
+  add-on is exactly one LibreChat process, the case the flag asserts.
+  Existing installs seeded from 0.8.8-rc3 already have the flag set
+- `librechat.yaml` stub now writes config version `1.3.17` (documented for
+  v0.8.8-rc4; upstream example file renamed to `librechat.example.yaml`)
+
 ## 0.8.8-rc3-ha2
 
 - The auto-created `librechat.yaml` stub now uses config version `1.3.16`,
