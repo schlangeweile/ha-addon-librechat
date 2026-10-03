@@ -6,19 +6,44 @@ Anthropic, Google, local LLM servers via OpenAI-compatible APIs, and more).
 
 ## How it works
 
-The add-on runs five services in one container:
+The add-on runs six services in one container:
 
 | Service                          | Purpose                              | Bound to              |
 | -------------------------------- | ------------------------------------ | --------------------- |
 | LibreChat                        | Web UI + API on port 3080            | `0.0.0.0:3080`        |
+| Admin panel                      | User/role management, configuration  | `0.0.0.0:3081`        |
 | FerretDB                         | MongoDB-compatible API for LibreChat | `127.0.0.1:27017`     |
 | PostgreSQL 17 + DocumentDB       | Document storage engine              | `127.0.0.1:5432`      |
 | Meilisearch                      | Full-text search over conversations  | `127.0.0.1:7700`      |
 
-Only port 3080 is exposed to your network; everything else is reachable
-exclusively inside the add-on container. LibreChat connects to FerretDB with
-the standard `MONGO_URI` (`mongodb://127.0.0.1:27017/LibreChat`); no
-configuration needed for the database.
+Ports 3080 (chat) and 3081 (admin panel) are exposed to your network;
+everything else is reachable exclusively inside the add-on container.
+LibreChat connects to FerretDB with the standard `MONGO_URI`
+(`mongodb://127.0.0.1:27017/LibreChat`); no configuration needed for the
+database.
+
+## Admin panel
+
+Open `http://<home-assistant>:3081` and log in with your LibreChat admin
+account (the first account you registered). The panel lets you
+
+- manage **access**: create custom roles and groups and assign your existing
+  users to them, fine-tune permissions/capabilities per role,
+- edit `librechat.yaml` settings through a form UI (no restart of the chat
+  needed for most settings).
+
+New user **accounts** are created through the normal registration page of the
+chat (`http://<home-assistant>:3080`, controlled by `ALLOW_REGISTRATION`) -
+the admin panel cannot create accounts yet (upstream roadmap; the panel's
+user pages and the required API endpoints are not released).
+
+All panel requests are proxied to LibreChat inside the container; the panel
+talks to the API on `127.0.0.1:3080` and never exposes the database. The
+panel is optional tooling - if it crashes, the chat keeps running and s6
+restarts it.
+
+Optionally set `ADMIN_PANEL_URL=http://<home-assistant>:3081` in `.env` to
+get an "Admin Panel" link under Settings → General in the chat UI.
 
 ## Why FerretDB instead of MongoDB?
 

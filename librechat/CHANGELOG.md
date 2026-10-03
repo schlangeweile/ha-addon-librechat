@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.8.8-ha1
+
+- LibreChat **v0.8.8** final (was v0.8.8-rc4) - security hardening (MCP OAuth
+  redirect/private-IP blocking, 2FA management rate limiting, one-time admin
+  OAuth code redemption), background-task controls and model additions (Claude
+  Sonnet 5.5, GPT-6.1 Sol); no breaking changes, DocumentDB/FerretDB paths
+  untouched
+- **Image namespace switch:** the upstream image moved to
+  `ghcr.io/librechat-ai/librechat` after the repository transfer to the
+  LibreChat-AI organization. The old `danny-avila` namespace is only mirrored
+  upstream by a legacy copy job and stopped receiving tags after v0.8.8-rc4 -
+  v0.8.8 final was never published there. Node 24.16.0, the `sharp` 0.35.4
+  dependency and the Alpine `/app` image layout are unchanged for this add-on
+- **Bundled admin panel** (`ghcr.io/clickhouse/librechat-admin-panel:1.0.0`)
+  on new port **3081**: access management (custom roles and groups, assign
+  existing users to them, per-role capability grants) and GUI editing of
+  `librechat.yaml`. Log in with your LibreChat admin account (the first
+  registered user). Note: the panel cannot create user accounts yet - users
+  register through the chat UI as before (upstream roadmap item; the panel's
+  user pages and the matching API endpoints are unreleased). The panel talks
+  to the API container-internally; all browser traffic goes to port 3081
+  only. Its session secret is generated once and persisted in `/data`. Set
+  `ADMIN_PANEL_URL=http://<host>:3081` in `.env` to get a panel link in
+  LibreChat's settings. The panel is optional: it may crash without affecting
+  the chat
+- The panel runtime (bun) is a musl binary and runs on the glibc base through
+  a bundled musl loader under `/opt/admin-panel`; its arm64 build uses LSE
+  atomics only behind a HWCAP runtime dispatch (outline atomics) and is
+  therefore ARMv8.0-safe like every other bundled binary
+- `.env.example` refreshed from the v0.8.8 tag: only the `OPENAI_MODELS`
+  example list changed upstream (`gpt-6.1-sol` added); the local overrides
+  (`CONFIG_PATH`, `SCHEDULES_SINGLE_PROCESS=true`) are kept
+
 ## 0.8.8-rc4-ha1
 
 - LibreChat **v0.8.8-rc4** (was v0.8.8-rc3) - upstream pre-release with ~100

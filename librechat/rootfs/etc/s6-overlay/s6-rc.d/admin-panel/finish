@@ -1,0 +1,12 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+
+declare APP_EXIT_CODE=${1}
+
+if [[ "${APP_EXIT_CODE}" -ne 0 ]] && [[ "${APP_EXIT_CODE}" -ne 256 ]]; then
+    # The admin panel is optional tooling; a crash must not take the chat
+    # down, s6 restarts the service
+    bashio::log.warning "Admin panel exited with code ${APP_EXIT_CODE}; user management is unavailable until it restarts"
+fi
+
+bashio::log.info "Admin panel stopped, restarting..."

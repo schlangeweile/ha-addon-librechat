@@ -7,9 +7,20 @@
 # extension and FerretDB are all ARMv8.0-safe (verified with QEMU cortex-a53
 # and an LSE opcode scan). LibreChat gained official DocumentDB/FerretDB
 # support in v0.8.8-rc3.
-ARG LIBRECHAT_VERSION=v0.8.8-rc4
+#
+# The LibreChat image lives in the librechat-ai org namespace; the old
+# danny-avila namespace is only kept alive upstream through a legacy copy
+# job and stopped receiving tags after v0.8.8-rc4.
+ARG LIBRECHAT_VERSION=v0.8.8
+ARG ADMIN_PANEL_VERSION=1.0.0
 
-FROM ghcr.io/danny-avila/librechat:${LIBRECHAT_VERSION} AS librechat
+FROM ghcr.io/librechat-ai/librechat:${LIBRECHAT_VERSION} AS librechat
+
+# Standalone admin panel (user/role management, GUI configuration). The image
+# is Alpine-based; bun is a musl binary and runs on this glibc base through
+# the bundled musl loader (see the admin-panel s6 service). bun's arm64 build
+# only uses LSE atomics behind a HWCAP runtime dispatch - ARMv8.0-safe.
+FROM ghcr.io/clickhouse/librechat-admin-panel:${ADMIN_PANEL_VERSION} AS adminpanel
 
 FROM ghcr.io/ferretdb/ferretdb:2.7.0 AS ferretdb
 
@@ -19,7 +30,8 @@ FROM ghcr.io/ferretdb/postgres-documentdb:17-0.107.0-ferretdb-2.7.0
 
 ARG TARGETARCH
 ARG BUILD_ARCH
-ARG LIBRECHAT_VERSION=v0.8.8-rc4
+ARG LIBRECHAT_VERSION=v0.8.8
+ARG ADMIN_PANEL_VERSION=1.0.0
 ARG MEILISEARCH_VERSION=v1.35.1
 ARG S6_OVERLAY_VERSION=3.2.3.2
 ARG BASHIO_VERSION=0.19.0
@@ -77,6 +89,15 @@ COPY --from=ferretdb /ferretdb /usr/local/bin/ferretdb
 # LibreChat app from the official image (built frontend + production deps)
 COPY --from=librechat /app /app
 WORKDIR /app
+
+# Admin panel app plus bun and its musl runtime, isolated under /opt/admin-panel
+# (bun needs exactly libc.musl, libstdc++ and libgcc_s; the musl loader is
+# invoked explicitly by the run script because the base image is glibc)
+COPY --from=adminpanel /app /opt/admin-panel/app
+COPY --from=adminpanel /usr/local/bin/bun /opt/admin-panel/bin/bun
+COPY --from=adminpanel /lib/libc.musl-* /opt/admin-panel/lib/
+COPY --from=adminpanel /usr/lib/libstdc++.so.6* /opt/admin-panel/lib/
+COPY --from=adminpanel /usr/lib/libgcc_s.so.1 /opt/admin-panel/lib/
 
 # The official image is Alpine (musl): replace the sharp prebuilds with the
 # glibc variants so image uploads keep working on this Debian base

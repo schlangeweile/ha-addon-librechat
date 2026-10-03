@@ -1,0 +1,35 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+
+bashio::log.info "Starting LibreChat Admin Panel (0.0.0.0:3081)"
+
+# Persistent session secret: generated once, survives restarts so admin
+# sessions stay valid across add-on restarts (the panel refuses to start
+# with a secret shorter than 32 characters)
+SECRET_FILE=/data/admin_panel_session_secret
+if [ ! -s "$SECRET_FILE" ]; then
+    head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$SECRET_FILE"
+    chmod 600 "$SECRET_FILE"
+fi
+
+# Browser-facing URL of the chat instance (only used for optional SSO
+# redirects); the panel talks to the API itself via API_SERVER_URL
+DOMAIN_CLIENT="$(grep '^DOMAIN_CLIENT=' /config/.env 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+DOMAIN_CLIENT="${DOMAIN_CLIENT:-http://localhost:3080}"
+
+export PORT=3081
+export NODE_ENV=production
+export SESSION_SECRET="$(cat "$SECRET_FILE")"
+export API_SERVER_URL="http://127.0.0.1:3080"
+export VITE_API_BASE_URL="${DOMAIN_CLIENT}"
+# The add-on serves plain HTTP on the LAN; Secure session cookies would be
+# dropped by browsers and break the panel login
+export SESSION_COOKIE_SECURE=false
+
+cd /opt/admin-panel/app || exit 1
+
+# bun is a musl binary from the Alpine panel image; the base image is glibc,
+# so run it through the bundled musl loader (works for both arches - the
+# loader file name carries the architecture suffix)
+LOADER="$(echo /opt/admin-panel/lib/libc.musl-*.so.1)"
+exec "$LOADER" --library-path /opt/admin-panel/lib /opt/admin-panel/bin/bun server.ts

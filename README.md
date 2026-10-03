@@ -2,9 +2,9 @@
 
 A Home Assistant add-on repository running [LibreChat](https://www.librechat.ai)
 - the open-source AI chat platform - with a built-in FerretDB/PostgreSQL
-document database and Meilisearch full-text search. Everything runs locally
-on your Home Assistant OS device; you supply the model endpoints (OpenAI,
-Anthropic, local LLM servers, ...).
+document database, Meilisearch full-text search and an admin panel for user
+management. Everything runs locally on your Home Assistant OS device; you
+supply the model endpoints (OpenAI, Anthropic, local LLM servers, ...).
 
 It targets devices like the **Hardkernel Odroid N2+** and Raspberry Pi 4/5
 (aarch64) as well as x86-64 machines. All bundled services are verified to
@@ -32,7 +32,9 @@ pulled on install.
 3. Refresh, open **LibreChat** from the store and click **Install**
    (the finished image is pulled for your device's architecture).
 4. Start the add-on and open `http://<home-assistant>:3080`.
-   The first account you register becomes the administrator.
+   The first account you register becomes the administrator. The bundled
+   admin panel at `http://<home-assistant>:3081` manages roles, groups,
+   permissions and configuration for your users.
 
 Configuration is file-based: on first start a `.env` file appears in the
 add-on configuration folder. See the add-on's **Documentation** tab for
