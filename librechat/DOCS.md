@@ -37,6 +37,28 @@ chat (`http://<home-assistant>:3080`, controlled by `ALLOW_REGISTRATION`) -
 the admin panel cannot create accounts yet (upstream roadmap; the panel's
 user pages and the required API endpoints are not released).
 
+### User administration (`useradm.json`)
+
+Listing, banning and deleting accounts is done through a one-shot command
+file because neither Home Assistant OS (no shell in add-on containers) nor
+LibreChat 0.8.8 (no admin API for it) offer another path. Place a file
+named `useradm.json` next to `.env` in the add-on config folder, restart
+the add-on, and read the result in the add-on log and in the generated
+`useradm.done.json`:
+
+```json
+{ "list": true }
+{ "ban": ["spamuser", "intruder@example.com"] }
+{ "unban": ["spamuser"] }
+{ "delete": ["intruder@example.com"], "confirm": true }
+```
+
+Identifiers are exact usernames, email addresses or user ids. ADMIN
+accounts are never modified or deleted by this tool. Deletion removes the
+user's conversations, messages, sessions, API keys, presets, agents,
+prompts and related documents - mirroring LibreChat's own account
+deletion.
+
 All panel requests are proxied to LibreChat inside the container; the panel
 talks to the API on `127.0.0.1:3080` and never exposes the database. The
 panel is optional tooling - if it crashes, the chat keeps running and s6

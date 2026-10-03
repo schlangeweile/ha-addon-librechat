@@ -16,6 +16,14 @@ done
 
 cd /app || exit 1
 
+# One-shot user administration: a useradm.json in the config folder is
+# processed against the database before the app starts, then consumed
+# (renamed to useradm.done.json). See the add-on documentation.
+if [ -f /config/useradm.json ]; then
+    bashio::log.info "Processing /config/useradm.json (user administration)"
+    node /etc/librechat/useradm.mjs || bashio::log.warning "useradm reported an error - see log above"
+fi
+
 # Persist uploaded images outside the application directory
 mkdir -p /data/images
 rm -rf /app/client/public/images

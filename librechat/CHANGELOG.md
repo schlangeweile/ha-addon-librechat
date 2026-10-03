@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.8-ha2
+
+- **`useradm`: one-shot user administration via the config folder.** Home
+  Assistant OS offers no shell access to add-on containers and LibreChat
+  0.8.8 has no admin API to list/ban/delete accounts (the admin panel's
+  user pages and the matching endpoints are unreleased upstream). To close
+  this gap, a `useradm.json` placed in the add-on config folder is
+  processed at add-on start before the app launches, then consumed and
+  answered with `useradm.done.json`:
+  - `{"list": true}` lists all users (username, email, role, ban state)
+  - `{"ban": ["<name-or-email>"], "unban": [...]}` blocks/unblocks login
+  - `{"delete": ["<name-or-email>"], "confirm": true}` removes accounts
+    together with their data across ~24 collections, mirroring LibreChat's
+    own account-deletion cleanup; without `confirm` it only reports what
+    would be removed (dry run)
+  - Users with the ADMIN role are never modified or deleted, and unknown
+    identifiers produce warnings
+- No LibreChat or admin panel version change (still v0.8.8 / panel 1.0.0)
+
 ## 0.8.8-ha1
 
 - LibreChat **v0.8.8** final (was v0.8.8-rc4) - security hardening (MCP OAuth
