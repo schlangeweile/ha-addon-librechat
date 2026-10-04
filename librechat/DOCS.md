@@ -130,6 +130,9 @@ wrong pronunciation, set `TTS_LANGUAGE_HINTS=de` (and optionally
   local.
 - Long messages are split at sentence boundaries, synthesized chunk by chunk
   and returned as one audio file.
+- Reasoning blocks (`<think>…</think>`) are stripped before synthesis -
+  only the final answer is read aloud, never the model's (typically
+  English) thought process.
 - The gateway is optional tooling like the admin panel: if it crashes or is
   left unconfigured, the chat keeps running.
 

@@ -47,6 +47,25 @@ dashscope.api_key = API_KEY
 
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 
+# Reasoning models deliver their thought process inline in the message text
+# (e.g. <think>...</think> blocks). LibreChat parses these for display only -
+# both the manual speaker click and automatic playback send the raw text,
+# including the reasoning, to this gateway. Strip the blocks here so only
+# the actual answer gets spoken (covers both paths at once).
+THINK_BLOCK = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+THINK_UNCLOSED = re.compile(r"<think>.*", re.IGNORECASE | re.DOTALL)
+BLANK_LINES = re.compile(r"\n{3,}")
+SPACE_RUNS = re.compile(r"[ \t]{2,}")
+
+
+def strip_reasoning(text: str) -> str:
+    """Remove inline reasoning blocks from the text to synthesize."""
+    stripped = THINK_BLOCK.sub(" ", text)
+    stripped = THINK_UNCLOSED.sub(" ", stripped)  # clicked mid-generation
+    stripped = BLANK_LINES.sub("\n\n", stripped)
+    stripped = SPACE_RUNS.sub(" ", stripped)
+    return stripped.strip()
+
 
 def log(level: str, msg: str) -> None:
     print(f"tts: {level}: {msg}", file=sys.stderr, flush=True)
@@ -141,6 +160,10 @@ class Handler(BaseHTTPRequestHandler):
         text = request.get("input") or ""
         if not isinstance(text, str) or not text.strip():
             self._error(400, "'input' must be a non-empty string", "invalid_request_error")
+            return
+        text = strip_reasoning(text)
+        if not text:
+            self._error(400, "input contains only reasoning content - nothing to speak", "invalid_request_error")
             return
         if not API_KEY or not WS_URL:
             self._error(503, "TTS gateway is not configured: set DASHSCOPE_API_KEY and TTS_WS_URL in the add-on .env", "not_configured")

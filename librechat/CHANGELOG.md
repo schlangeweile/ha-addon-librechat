@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.8-ha4
+
+- **TTS: reasoning is no longer read aloud.** Reasoning models deliver
+  their thought process inline in the message text (`<think>…</think>`
+  blocks); LibreChat separates these for display only - both the manual
+  speaker click and automatic playback send the raw text, so the spoken
+  audio included the (usually English) reasoning. The TTS gateway now
+  strips reasoning blocks (including unclosed ones from messages clicked
+  mid-generation) before synthesis, covering both playback paths without
+  any LibreChat-side configuration. Messages that contain only reasoning
+  answer with a clear 400 instead of synthesizing nothing.
+- No LibreChat or admin panel version change (still v0.8.8 / panel 1.0.0)
+
 ## 0.8.8-ha3
 
 - **TTS gateway service: natural read-aloud of chat messages.** New optional
