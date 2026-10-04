@@ -35,6 +35,7 @@ ARG ADMIN_PANEL_VERSION=1.0.0
 ARG MEILISEARCH_VERSION=v1.35.1
 ARG S6_OVERLAY_VERSION=3.2.3.2
 ARG BASHIO_VERSION=0.19.0
+ARG DASHSCOPE_VERSION=1.27.4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -54,7 +55,7 @@ ENV HOST=0.0.0.0 \
 # home-assistant/builder exports BUILD_ARCH (HA naming) - normalize both.
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends curl xz-utils; \
+    apt-get install -y --no-install-recommends curl xz-utils python3 python3-pip; \
     case "${TARGETARCH:-${BUILD_ARCH:-}}" in \
         amd64) S6_ARCH=x86_64; MEILI_ARCH=amd64 ;; \
         arm64|aarch64) S6_ARCH=aarch64; MEILI_ARCH=aarch64 ;; \
@@ -75,6 +76,13 @@ RUN set -eux; \
     curl -fsSL "https://github.com/meilisearch/meilisearch/releases/download/${MEILISEARCH_VERSION}/meilisearch-linux-${MEILI_ARCH}" -o /opt/meilisearch; \
     chmod 755 /opt/meilisearch; \
     rm -rf /tmp/* /var/lib/apt/lists/*
+
+# DashScope SDK for the TTS gateway service (see /etc/librechat/tts_server.py):
+# pure Python with manylinux-baseline wheels only - ARMv8.0-safe on aarch64.
+# Vendored into /opt/tts/deps (PYTHONPATH); Debian's pip requires
+# --break-system-packages for any install outside a venv.
+RUN pip3 install --no-cache-dir --break-system-packages \
+        --target /opt/tts/deps "dashscope==${DASHSCOPE_VERSION}"
 
 # Node.js + npm from the official node image (postgres base has none);
 # /usr/local already contains the postgres image's gosu - extend, not replace

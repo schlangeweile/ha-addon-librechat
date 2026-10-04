@@ -6,12 +6,13 @@ Anthropic, Google, local LLM servers via OpenAI-compatible APIs, and more).
 
 ## How it works
 
-The add-on runs six services in one container:
+The add-on runs seven services in one container:
 
 | Service                          | Purpose                              | Bound to              |
 | -------------------------------- | ------------------------------------ | --------------------- |
 | LibreChat                        | Web UI + API on port 3080            | `0.0.0.0:3080`        |
 | Admin panel                      | User/role management, configuration  | `0.0.0.0:3081`        |
+| TTS gateway                      | OpenAI-compatible speech endpoint    | `127.0.0.1:3082`      |
 | FerretDB                         | MongoDB-compatible API for LibreChat | `127.0.0.1:27017`     |
 | PostgreSQL 17 + DocumentDB       | Document storage engine              | `127.0.0.1:5432`      |
 | Meilisearch                      | Full-text search over conversations  | `127.0.0.1:7700`      |
@@ -66,6 +67,71 @@ restarts it.
 
 Optionally set `ADMIN_PANEL_URL=http://<home-assistant>:3081` in `.env` to
 get an "Admin Panel" link under Settings → General in the chat UI.
+
+## Text-to-speech (TTS)
+
+Chat messages can be read aloud with natural voices from Alibaba Model Studio
+(DashScope, `qwen-audio-3.1-tts-*` models). A small gateway service inside the
+add-on listens on `127.0.0.1:3082` and speaks the OpenAI audio API
+(`/v1/audio/speech`); LibreChat calls it server-side, so your browser only
+ever talks to the chat itself.
+
+**Setup:**
+
+1. In `.env` (add-on config folder) set the two required values - both are
+   shown in the code sample the Model Studio console displays on the model
+   card of `qwen-audio-3.1-tts-flash`:
+   - `DASHSCOPE_API_KEY`: your Model Studio API key
+   - `TTS_WS_URL`: your account's dedicated websocket gateway
+     (`wss://ws-….cn-beijing.maas.aliyuncs.com/api-ws/v1/inference`)
+   Leave them empty to disable speech output entirely (the gateway then
+   answers with a clean 503 and the chat is unaffected).
+2. Add the `speech:` block to `librechat.yaml` (next to `.env`;
+   `CONFIG_PATH` already points there):
+
+   ```yaml
+   speech:
+     tts:
+       allowedAddresses:
+         - '127.0.0.1:3082'
+       openai:
+         url: 'http://127.0.0.1:3082/v1/audio/speech'
+         apiKey: 'not-needed'
+         model: 'qwen-audio-3.1-tts-flash'
+         voices: ['Ava_v3.1', 'Brian_v3.1']
+     speechTab:
+       textToSpeech:
+         engineTTS: 'openai'
+         voice: 'Ava_v3.1'
+         languageTTS: 'de'
+         automaticPlayback: true
+         cacheTTS: true
+   ```
+
+   The `allowedAddresses` entry whitelists the loopback endpoint for
+   LibreChat's SSRF protection - requests to private addresses are rejected
+   without it.
+3. Restart the add-on, then open the chat → Settings → Speech and enable
+   text-to-speech (the snippet above already enables automatic playback of
+   every answer; each user can change this in their own speech settings).
+
+**Voices** are switched per user in the chat's speech settings; the selectable
+list is the `voices:` array above. Voice IDs come from the voice list of the
+model card in the Model Studio console (e.g. `Ava_v3.1`, `Brian_v3.1`) - add
+an ID there to make a new voice available. If a voice reads German text with
+wrong pronunciation, set `TTS_LANGUAGE_HINTS=de` (and optionally
+`TTS_INSTRUCTION`) in `.env` and restart.
+
+**Notes:**
+
+- Requires an Alibaba Cloud account with Model Studio access; synthesis is
+  billed per token by Alibaba (cents per month for personal use). The text of
+  every spoken message is sent to Alibaba's cloud - everything else stays
+  local.
+- Long messages are split at sentence boundaries, synthesized chunk by chunk
+  and returned as one audio file.
+- The gateway is optional tooling like the admin panel: if it crashes or is
+  left unconfigured, the chat keeps running.
 
 ## Why FerretDB instead of MongoDB?
 

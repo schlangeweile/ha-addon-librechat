@@ -1,0 +1,35 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+## Run the TTS gateway: OpenAI-compatible /v1/audio/speech endpoint on
+## 127.0.0.1:3082, backed by DashScope (qwen-audio-3.1-tts generation).
+## Independent of the database chain like meilisearch - speech output is
+## optional, a crash must never halt the add-on (see the finish script).
+
+bashio::log.info "Starting TTS gateway (127.0.0.1:3082)"
+
+# Pull the TTS configuration out of the user's .env in the add-on config
+# folder (same pattern as the admin panel). The file may not exist yet on
+# the very first boot (the librechat service seeds it) - missing values
+# fall back to the defaults below and the server answers requests with a
+# clean 503 until it is configured.
+env_from_file() {
+    grep -E "^${1}=" /config/.env 2>/dev/null | tail -n1 | cut -d= -f2- | tr -d '"' || true
+}
+
+export DASHSCOPE_API_KEY="$(env_from_file DASHSCOPE_API_KEY)"
+export TTS_WS_URL="$(env_from_file TTS_WS_URL)"
+export TTS_MODEL="$(env_from_file TTS_MODEL)"
+export TTS_MODEL="${TTS_MODEL:-qwen-audio-3.1-tts-flash}"
+export TTS_VOICE="$(env_from_file TTS_VOICE)"
+export TTS_VOICE="${TTS_VOICE:-Ava_v3.1}"
+export TTS_PORT="$(env_from_file TTS_PORT)"
+export TTS_PORT="${TTS_PORT:-3082}"
+export TTS_MAX_CHARS="$(env_from_file TTS_MAX_CHARS)"
+export TTS_MAX_CHARS="${TTS_MAX_CHARS:-1000}"
+export TTS_LANGUAGE_HINTS="$(env_from_file TTS_LANGUAGE_HINTS)"
+export TTS_INSTRUCTION="$(env_from_file TTS_INSTRUCTION)"
+
+# dashscope SDK vendored into the image (pinned in the Dockerfile)
+export PYTHONPATH=/opt/tts/deps
+
+exec python3 /etc/librechat/tts_server.py

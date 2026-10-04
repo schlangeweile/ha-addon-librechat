@@ -1,7 +1,7 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration
 name: LibreChat
 slug: librechat
-version: "0.8.8-ha2"
+version: "0.8.8-ha3"
 description: Open-source AI chat platform (LibreChat) with built-in FerretDB (MongoDB-compatible) storage, Meilisearch and an admin panel, running fully locally
 url: "https://github.com/schlangeweile/ha-addon-librechat/tree/master/librechat"
 arch:

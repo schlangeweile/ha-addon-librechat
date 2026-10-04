@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.8-ha3
+
+- **TTS gateway service: natural read-aloud of chat messages.** New optional
+  s6 service `tts` (independent like meilisearch - a crash never halts the
+  add-on) that exposes an OpenAI-compatible `/v1/audio/speech` endpoint on
+  `127.0.0.1:3082` and synthesizes through Alibaba Model Studio
+  (`qwen-audio-3.1-tts-flash` via the pinned `dashscope` SDK 1.27.4, pure
+  Python - ARMv8.0-safe)
+  - Setup: `DASHSCOPE_API_KEY` + `TTS_WS_URL` (account-specific dedicated
+    websocket gateway from the Model Studio console code sample) in the
+    add-on `.env`, plus the `speech:` block documented in DOCS.md; voice
+    IDs (e.g. `Ava_v3.1`, `Brian_v3.1`) are passed through per request, so
+    voices are switched per user in LibreChat's speech settings
+  - Long messages are split at sentence boundaries and returned as one MP3;
+    unconfigured setups answer with a clean 503 instead of failing the chat
+- No LibreChat or admin panel version change (still v0.8.8 / panel 1.0.0)
+
 ## 0.8.8-ha2
 
 - **`useradm`: one-shot user administration via the config folder.** Home
