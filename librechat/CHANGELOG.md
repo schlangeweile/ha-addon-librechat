@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.8.8-ha5
+
+- **`useradm`: account deletion now removes all per-user data.** The cleanup
+  list was re-checked against the LibreChat v0.8.8 data-schemas: several
+  collections were addressed through the wrong field name (`sessions.user`,
+  `prompts.author`, `keys.userId`, `agents.author`, `agentapikeys.userId`,
+  `memories.userId`, `skills.author`, `mcpservers.author`,
+  `codeenvironments.createdBy`) and some were missing entirely (plugin
+  credentials, tool favorites, chat projects, queued turns, skill files and
+  sync state, refresh-token bridges, trigger state, system grants). Group
+  membership is now pulled from `groups.memberIds` - the previous `members`
+  update was a no-op, and roles have no member list. A residual scan after
+  each deletion logs (and stores in `useradm.done.json`) any documents that
+  still reference the deleted account.
+- **Cold backups.** `backup: cold` prevents the Supervisor from copying the
+  live PostgreSQL cluster and Meilisearch LMDB during a hot backup; the
+  add-on now stops briefly for backups and gets a 30 s stop timeout so s6 and
+  PostgreSQL shut down cleanly. Same approach as the sibling AnythingLLM
+  add-on.
+- **"Open Web UI" button** via `webui` in `config.yaml`.
+- Documentation: the migration section no longer claims that the old MongoDB
+  `db/` folder can be restored (FerretDB does not read it), the service table
+  includes `dbinit`, port 3081 is described in the translations, the example
+  `librechat.yaml` uses config version 1.3.17, and the admin-panel
+  `SESSION_SECRET`/`PORT` variables are marked as unused by this add-on.
+- CI: the workflow now validates that the LibreChat version in `config.yaml`
+  and the `LIBRECHAT_VERSION` Dockerfile ARG match before building.
+- `finish` scripts use `#!/usr/bin/with-contenv bashio` like the `run`
+  scripts, so container environment variables (e.g. `PGDATA` for the log
+  dump) are available.
+- No LibreChat or admin panel version change (still v0.8.8 / panel 1.0.0)
+
 ## 0.8.8-ha4
 
 - **TTS: reasoning is no longer read aloud.** Reasoning models deliver

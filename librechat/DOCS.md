@@ -15,6 +15,7 @@ The add-on runs seven services in one container:
 | TTS gateway                      | OpenAI-compatible speech endpoint    | `127.0.0.1:3082`      |
 | FerretDB                         | MongoDB-compatible API for LibreChat | `127.0.0.1:27017`     |
 | PostgreSQL 17 + DocumentDB       | Document storage engine              | `127.0.0.1:5432`      |
+| `dbinit` (one-shot)              | Creates the database + DocumentDB extension | –              |
 | Meilisearch                      | Full-text search over conversations  | `127.0.0.1:7700`      |
 
 Ports 3080 (chat) and 3081 (admin panel) are exposed to your network;
@@ -57,8 +58,10 @@ the add-on, and read the result in the add-on log and in the generated
 Identifiers are exact usernames, email addresses or user ids. ADMIN
 accounts are never modified or deleted by this tool. Deletion removes the
 user's conversations, messages, sessions, API keys, presets, agents,
-prompts and related documents - mirroring LibreChat's own account
-deletion.
+prompts, skills, plugin credentials and related documents across the
+per-user collections of LibreChat 0.8.8. Resources shared only through
+ACLs are not resolved; anything that still references the deleted account
+is reported as a warning in the add-on log and in `useradm.done.json`.
 
 All panel requests are proxied to LibreChat inside the container; the panel
 talks to the API on `127.0.0.1:3080` and never exposes the database. The
@@ -215,6 +218,10 @@ in `postgresql/`, Meilisearch index in `meilisearch/`, uploaded images in
 `images/`) and the add-on config folder (`.env`, `librechat.yaml`). A normal
 Home Assistant add-on backup captures both. Restoring into a fresh install
 restores your accounts and chats.
+
+Backups run in cold mode: the add-on is stopped briefly while the backup is
+created, so the live PostgreSQL cluster and the Meilisearch index are copied
+consistently (the Supervisor defaults to hot backups).
 
 ## Updating
 

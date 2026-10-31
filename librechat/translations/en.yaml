@@ -1,3 +1,4 @@
 configuration: {}
 network:
   3080/tcp: LibreChat web interface
+  3081/tcp: LibreChat admin panel

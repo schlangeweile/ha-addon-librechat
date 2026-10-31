@@ -33,34 +33,58 @@ const DONE_FILE = '/config/useradm.done.json';
 // Collections that may hold per-user documents, with the field carrying
 // the user reference. Field values are matched as ObjectId AND string -
 // LibreChat schemas use both forms. Collections that do not exist in this
-// database are skipped silently. Mirrors the cleanup set of LibreChat's
-// own account deletion (api/server/controllers/UserController.js).
+// database are skipped silently.
+//
+// Verified against the Mongoose models and schemas of LibreChat v0.8.8
+// (packages/data-schemas): collection names follow the model names
+// (AgentApiKey -> agentapikeys, PluginAuth -> pluginauths, SharedLink ->
+// sharedlinks, ...), the reference field differs per model (user, userId,
+// author, createdBy). The set covers the per-user collections of that
+// release; shared resources owned only through ACLs are not resolved, so
+// the residual scan below reports anything that still references the
+// deleted account.
 const USER_REFS = [
   ['conversations', 'user'],
   ['messages', 'user'],
-  ['sessions', 'userId'],
+  ['sessions', 'user'],
   ['presets', 'user'],
-  ['prompts', 'user'],
+  ['promptgroups', 'author'],
+  ['prompts', 'author'],
   ['files', 'user'],
-  ['keys', 'user'],
+  ['keys', 'userId'],
   ['transactions', 'user'],
   ['balances', 'user'],
-  ['sharedmessages', 'user'],
+  ['sharedlinks', 'user'],
   ['toolcalls', 'user'],
-  ['agents', 'user'],
-  ['agentkeys', 'user'],
+  ['agents', 'author'],
+  ['agentapikeys', 'userId'],
   ['assistants', 'user'],
   ['conversationtags', 'user'],
-  ['memories', 'user'],
-  ['userskills', 'user'],
-  ['skills', 'user'],
-  ['mcpservers', 'user'],
+  ['memories', 'userId'],
+  ['skills', 'author'],
+  ['mcpservers', 'author'],
   ['actions', 'user'],
   ['tokens', 'userId'],
   ['aclentries', 'principalId'],
   ['schedules', 'user'],
-  ['codeenvironments', 'user'],
+  ['codeenvironments', 'createdBy'],
+  ['pluginauths', 'userId'],
+  ['toolfavorites', 'user'],
+  ['chatprojects', 'user'],
+  ['agentqueuedturns', 'user'],
+  ['agentqueuedturnsequences', 'user'],
+  ['skillfiles', 'author'],
+  ['skillsynccredentials', 'createdBy'],
+  ['skillsyncstatuses', 'owner'],
+  ['refreshtokenbridges', 'userId'],
+  ['agenttriggerdeliveries', 'user'],
+  ['agenttriggerlanesequences', 'user'],
+  ['systemgrants', 'principalId'],
 ];
+
+// Fields that can reference a user, used by the residual diagnostic after
+// a deletion. Keep in sync with the models above.
+const REF_FIELDS = ['user', 'userId', 'author', 'createdBy', 'owner', 'principalId', 'memberIds'];
 
 const log = (...args) => console.log('[useradm]', ...args);
 
@@ -103,6 +127,7 @@ async function main() {
   const users = db.collection('users');
   const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));
   const results = { ranAt: new Date().toISOString(), actions: [] };
+  const deletedUsers = [];
 
   if (spec.list) {
     log(`Users in database "${dbName}":`);
@@ -159,17 +184,52 @@ async function main() {
         const res = await db.collection(name).deleteMany({ [field]: { $in: ids } });
         removed += res.deletedCount;
       }
-      // group membership arrays and role member lists store string ids
-      for (const name of ['groups', 'roles']) {
-        if (!existing.has(name)) continue;
-        await db.collection(name).updateMany({}, { $pull: { members: user._id.toString() } });
+      // Group membership is a string array (`memberIds`) on the group
+      // document; roles have no member list (a user's role lives in
+      // users.role), so there is nothing to pull from roles.
+      if (existing.has('groups')) {
+        await db.collection('groups').updateMany(
+          {},
+          { $pull: { memberIds: { $in: [user._id.toString(), user._id] } } },
+        );
       }
       const res = await users.deleteOne({ _id: user._id });
       removed += res.deletedCount;
       log(`  removed ${removed} documents for ${user.username}`);
       results.actions.push(`deleted: ${user.username} (${removed} docs)`);
+      deletedUsers.push({ id: user._id, label: user.username ?? user.email ?? String(user._id) });
     }
     if (dry && victims.length > 0) results.actions.push('dry-run delete (re-run with confirm)');
+  }
+
+  // Diagnostic safety net: collection/reference drift upstream would
+  // otherwise leave user data behind silently. Report anything that still
+  // points at a deleted account (no further deletion - review manually).
+  if (deletedUsers.length > 0) {
+    const residual = [];
+    for (const { id, label } of deletedUsers) {
+      const ids = [id, id.toString()];
+      for (const name of existing) {
+        if (name === 'users') continue;
+        const query = { $or: REF_FIELDS.map((field) => ({ [field]: { $in: ids } })) };
+        let count = 0;
+        try {
+          count = await db.collection(name).countDocuments(query);
+        } catch {
+          continue; // unreadable/unsupported collection - skip
+        }
+        if (count > 0) {
+          residual.push(`${name}: ${count} (${label})`);
+          log(`WARNING: ${count} document(s) in "${name}" still reference ${label}`);
+        }
+      }
+    }
+    if (residual.length > 0) {
+      log('Residual references remain; review the collections above.');
+      results.residual = residual;
+    } else {
+      log('Residual check: no documents reference the deleted account(s).');
+    }
   }
 
   await client.close();
